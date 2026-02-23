@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { mockDatabase } from '@/data/mock';
-import { Class, Course, Progress, Student, User } from '@/types';
+import { Student, User } from '@/types';
+import { getRoleData } from '@/services/api';
 
 export default function Dashboard() {
   const { user, role, isAuthenticated, logout } = useAuthStore();
@@ -17,10 +18,10 @@ export default function Dashboard() {
   if (!isAuthenticated || !user) return null;
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 p-6">
-      <header className="flex justify-between items-center mb-8 border-b border-slate-700 pb-4">
+    <div className="min-h-screen bg-slate-950 text-slate-100 p-6">
+      <header className="flex justify-between items-center mb-8 border-b border-slate-800 pb-4">
         <div>
-          <h1 className="text-3xl font-bold text-blue-400">CodeMyni Dashboard</h1>
+          <h1 className="text-3xl font-bold text-blue-500">CodeMyni Dashboard</h1>
           <p className="text-slate-400 mt-1">
             Welcome, <span className="font-semibold text-white">{'name' in user ? user.name : user.uid}</span> ({role})
           </p>
@@ -37,7 +38,7 @@ export default function Dashboard() {
       </header>
 
       <main>
-        {role === 'admin' && <AdminDashboard />}
+        {role === 'admin' && <AdminDashboard currentUser={user as User} />}
         {role === 'teacher' && <TeacherDashboard currentUser={user as User} />}
         {role === 'student' && <StudentDashboard currentUser={user as Student} />}
       </main>
@@ -46,43 +47,57 @@ export default function Dashboard() {
 }
 
 // --- Admin Dashboard ---
-function AdminDashboard() {
+function AdminDashboard({ currentUser }: { currentUser: User }) {
+  const [data, setData] = useState<{
+    classes: string[];
+    progress: Record<string, Record<string, number>>;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getRoleData(currentUser.uid).then((res) => {
+      if (res) {
+        setData({
+          classes: res.kelas_uids,
+          progress: res.progress
+        });
+      }
+      setLoading(false);
+    });
+  }, [currentUser.uid]);
+
+  if (loading) return <div className="text-slate-400">Loading data from database...</div>;
+  if (!data) return <div className="text-red-400">Failed to load data.</div>;
+
+  // Flatten progress for table
+  const progressList = Object.entries(data.progress).flatMap(([studentUid, courses]) => 
+    Object.entries(courses).map(([courseUid, level]) => ({
+      studentUid,
+      courseUid,
+      level
+    }))
+  );
+
   return (
     <div className="space-y-8">
-      <Section title="Classes">
+      <Section title="All Classes">
         <DataTable
-          headers={['UID', 'Teachers', 'Students', 'Courses']}
-          data={mockDatabase.classes}
-          renderRow={(cls: Class) => (
-            <tr key={cls.uid} className="border-b border-slate-700 hover:bg-slate-800">
-              <td className="p-3">{cls.uid}</td>
-              <td className="p-3">{cls.teacherUids.join(', ')}</td>
-              <td className="p-3">{cls.studentUids.join(', ')}</td>
-              <td className="p-3">{cls.courseUids.join(', ')}</td>
+          headers={['Class UID']}
+          data={data.classes}
+          renderRow={(clsUid) => (
+            <tr key={clsUid} className="border-b border-slate-800 hover:bg-slate-900">
+              <td className="p-3 font-medium text-blue-300">{clsUid}</td>
             </tr>
           )}
         />
       </Section>
 
-      <Section title="Students">
-        <DataTable
-          headers={['UID', 'Class IDs']}
-          data={mockDatabase.students}
-          renderRow={(std: Student) => (
-            <tr key={std.uid} className="border-b border-slate-700 hover:bg-slate-800">
-              <td className="p-3">{std.uid}</td>
-              <td className="p-3">{std.classIds.join(', ')}</td>
-            </tr>
-          )}
-        />
-      </Section>
-
-      <Section title="Progress">
+      <Section title="All Student Progress">
         <DataTable
           headers={['Student', 'Course', 'Level']}
-          data={mockDatabase.progress}
-          renderRow={(prog: Progress) => (
-            <tr key={prog.id} className="border-b border-slate-700 hover:bg-slate-800">
+          data={progressList}
+          renderRow={(prog, idx) => (
+            <tr key={`${prog.studentUid}-${prog.courseUid}-${idx}`} className="border-b border-slate-800 hover:bg-slate-900">
               <td className="p-3">{prog.studentUid}</td>
               <td className="p-3">{prog.courseUid}</td>
               <td className="p-3">{prog.level}</td>
@@ -96,51 +111,63 @@ function AdminDashboard() {
 
 // --- Teacher Dashboard ---
 function TeacherDashboard({ currentUser }: { currentUser: User }) {
-  // Find classes where this teacher is assigned
-  const myClasses = mockDatabase.classes.filter((cls) =>
-    cls.teacherUids.includes(currentUser.uid)
-  );
+  const [data, setData] = useState<{
+    classes: string[];
+    progress: Record<string, Record<string, number>>;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Get students in those classes
-  const myStudentUids = new Set<string>();
-  myClasses.forEach((cls) => {
-    cls.studentUids.forEach((uid) => myStudentUids.add(uid));
-  });
+  useEffect(() => {
+    getRoleData(currentUser.uid).then((res) => {
+      if (res) {
+        setData({
+          classes: res.kelas_uids,
+          progress: res.progress
+        });
+      }
+      setLoading(false);
+    });
+  }, [currentUser.uid]);
 
-  // Get progress for those students
-  const myStudentsProgress = mockDatabase.progress.filter((prog) =>
-    myStudentUids.has(prog.studentUid)
+  if (loading) return <div className="text-slate-400">Loading data from database...</div>;
+  if (!data) return <div className="text-red-400">Failed to load data.</div>;
+
+  // Flatten progress for table
+  const progressList = Object.entries(data.progress).flatMap(([studentUid, courses]) => 
+    Object.entries(courses).map(([courseUid, level]) => ({
+      studentUid,
+      courseUid,
+      level
+    }))
   );
 
   return (
     <div className="space-y-8">
       <Section title="My Classes">
-        {myClasses.length === 0 ? (
+        {data.classes.length === 0 ? (
           <p className="text-slate-400">No classes assigned.</p>
         ) : (
           <DataTable
-            headers={['Class UID', 'Students Count', 'Courses']}
-            data={myClasses}
-            renderRow={(cls: Class) => (
-              <tr key={cls.uid} className="border-b border-slate-700 hover:bg-slate-800">
-                <td className="p-3 font-medium text-blue-300">{cls.uid}</td>
-                <td className="p-3">{cls.studentUids.length} students</td>
-                <td className="p-3">{cls.courseUids.join(', ')}</td>
+            headers={['Class UID']}
+            data={data.classes}
+            renderRow={(clsUid) => (
+              <tr key={clsUid} className="border-b border-slate-800 hover:bg-slate-900">
+                <td className="p-3 font-medium text-blue-300">{clsUid}</td>
               </tr>
             )}
           />
         )}
       </Section>
 
-      <Section title="Student Progress">
-        {myStudentsProgress.length === 0 ? (
+      <Section title="My Students Progress">
+        {progressList.length === 0 ? (
           <p className="text-slate-400">No progress data available for your students.</p>
         ) : (
           <DataTable
             headers={['Student', 'Course', 'Level']}
-            data={myStudentsProgress}
-            renderRow={(prog: Progress) => (
-              <tr key={prog.id} className="border-b border-slate-700 hover:bg-slate-800">
+            data={progressList}
+            renderRow={(prog, idx) => (
+              <tr key={`${prog.studentUid}-${prog.courseUid}-${idx}`} className="border-b border-slate-800 hover:bg-slate-900">
                 <td className="p-3">{prog.studentUid}</td>
                 <td className="p-3">{prog.courseUid}</td>
                 <td className="p-3">{prog.level}</td>
@@ -156,70 +183,54 @@ function TeacherDashboard({ currentUser }: { currentUser: User }) {
 // --- Student Dashboard ---
 function StudentDashboard({ currentUser }: { currentUser: Student }) {
   const navigate = useNavigate();
+  // Use state from store directly instead of fetching
+  const { studentData } = useAuthStore();
 
-  // Find classes the student belongs to
-  const myClasses = mockDatabase.classes.filter((cls) =>
-    currentUser.classIds.includes(cls.uid)
-  );
+  if (!studentData) {
+    return <div className="text-red-400">No student data found. Please try logging in again.</div>;
+  }
 
-  // Find courses available in those classes
-  const myCourseUids = new Set<string>();
-  myClasses.forEach((cls) => {
-    cls.courseUids.forEach((uid) => myCourseUids.add(uid));
+  // Map course UIDs to Mock Course Definitions for display (Title, Desc)
+  const availableCourses = studentData.kursus_uids.map(uid => {
+    const def = mockDatabase.courses.find(c => c.uid === uid);
+    return {
+      uid,
+      title: def?.title || `Unknown Course (${uid})`,
+      description: def?.description || 'No description available.',
+      modulesCount: def?.modules.length || def?.moduleLength || 0
+    };
   });
 
-  const myCourses = mockDatabase.courses.filter((course) =>
-    myCourseUids.has(course.uid)
-  );
-
-  // Get student's progress (Mock + LocalStorage)
-  const getProgressPercent = (courseUid: string) => {
-    // Check localStorage first
+  const getProgressPercent = (courseUid: string, totalModules: number) => {
+    if (totalModules === 0) return 0;
+    
+    // Check localStorage first for immediate feedback
     const storageKey = `codemyni_progress_${currentUser.uid}_${courseUid}`;
-    const savedLevel = localStorage.getItem(storageKey);
-    let level = 0;
-
-    if (savedLevel) {
-      level = parseInt(savedLevel, 10);
-    } else {
-      // Fallback to mock
-      const prog = mockDatabase.progress.find(
-        (p) => p.studentUid === currentUser.uid && p.courseUid === courseUid
-      );
-      if (prog) {
-        level = prog.level;
-      }
-    }
-
-    const course = mockDatabase.courses.find((c) => c.uid === courseUid);
-    if (!course) return 0;
+    const localLevel = localStorage.getItem(storageKey);
     
-    const total = course.modules.length;
-    if (total === 0) return 0;
-    
-    // Cap level at total
-    const effectiveLevel = Math.min(level, total);
-    return Math.round((effectiveLevel / total) * 100);
+    // Use Store progress as base (from API when logged in)
+    const apiLevel = studentData.progress[courseUid] || 0;
+    const effectiveLevel = localLevel ? Math.max(parseInt(localLevel), apiLevel) : apiLevel;
+
+    return Math.min(100, Math.round((effectiveLevel / totalModules) * 100));
   };
 
   return (
     <div className="space-y-8">
       <Section title="My Courses">
-        {myCourses.length === 0 ? (
+        {availableCourses.length === 0 ? (
           <p className="text-slate-400">No courses available.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {myCourses.map((course) => {
-              const percent = getProgressPercent(course.uid);
-              // We need to know which class this course belongs to for the URL param
-              // Ideally, user picks a class if course is in multiple classes.
-              // For simplicity, pick the first class found that has this course.
-              const classUid = myClasses.find(c => c.courseUids.includes(course.uid))?.uid || '';
+            {availableCourses.map((course) => {
+              const percent = getProgressPercent(course.uid, course.modulesCount);
+              // Pick first class ID for URL if multiple
+              const classUid = studentData.kelas_uids[0] || 'default';
 
               return (
                 <div
                   key={course.uid}
-                  className="bg-slate-800 rounded-lg p-6 border border-slate-700 hover:border-blue-500 transition-colors"
+                  className="bg-slate-900 rounded-lg p-6 border border-slate-800 hover:border-blue-500 transition-colors shadow-lg"
                 >
                   <h3 className="text-xl font-bold text-white mb-2">{course.title}</h3>
                   <p className="text-slate-400 text-sm mb-4 line-clamp-2">
@@ -231,9 +242,9 @@ function StudentDashboard({ currentUser }: { currentUser: Student }) {
                       <span>Progress</span>
                       <span>{percent}%</span>
                     </div>
-                    <div className="w-full bg-slate-700 rounded-full h-2">
+                    <div className="w-full bg-slate-800 rounded-full h-2">
                       <div
-                        className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                         style={{ width: `${percent}%` }}
                       ></div>
                     </div>
@@ -275,15 +286,15 @@ function DataTable<T>({
 }: {
   headers: string[];
   data: T[];
-  renderRow: (item: T) => React.ReactNode;
+  renderRow: (item: T, index: number) => React.ReactNode;
 }) {
   return (
-    <div className="overflow-x-auto bg-slate-800 rounded-lg border border-slate-700">
+    <div className="overflow-x-auto bg-slate-900 rounded-lg border border-slate-800 shadow-md">
       <table className="w-full text-left text-sm text-slate-300">
-        <thead className="bg-slate-900 text-slate-100 uppercase text-xs">
+        <thead className="bg-slate-950 text-slate-100 uppercase text-xs">
           <tr>
             {headers.map((h) => (
-              <th key={h} className="p-3 font-semibold tracking-wide">
+              <th key={h} className="p-3 font-semibold tracking-wide border-b border-slate-800">
                 {h}
               </th>
             ))}

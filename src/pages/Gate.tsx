@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { mockDatabase } from '../data/mock';
-import { Role } from '../types';
+import { getRoleData, getStudentCourse } from '../services/api';
 
 const Gate: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -10,47 +9,64 @@ const Gate: React.FC = () => {
   const { login, isAuthenticated } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
   const [inputId, setInputId] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const adminUid = searchParams.get('adminuid');
     const uid = searchParams.get('uid');
+    
+    // Only attempt auto-login if params exist and we are not already authenticated
+    if (adminUid || uid) {
+      handleLogin(adminUid || uid!);
+    }
+  }, [searchParams]); // Re-run if URL params change
 
-    if (adminUid) {
-      const admin = mockDatabase.admins.find(a => a.uid === adminUid);
-      if (admin) {
-        login(admin, 'admin');
-        navigate('/dashboard');
-      } else {
-        setError('Invalid Admin UID');
-      }
-    } else if (uid) {
-      // Check Teachers
-      const teacher = mockDatabase.teachers.find(t => t.uid === uid);
-      if (teacher) {
-        login(teacher, 'teacher');
+  const handleLogin = async (uid: string) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // 1. Try to fetch as Admin/Teacher
+      const roleData = await getRoleData(uid);
+      
+      // Check if roleData is valid (not empty object as per student case)
+      if (roleData && (roleData.kelas_uids?.length > 0 || Object.keys(roleData.progress || {}).length > 0)) {
+        // It's an Admin or Teacher
+        const role = uid.startsWith('admin') ? 'admin' : 'teacher';
+        login({ uid, name: uid, role }, role);
         navigate('/dashboard');
         return;
       }
 
-      // Check Students
-      const student = mockDatabase.students.find(s => s.uid === uid);
-      if (student) {
-        // Students need to be enrolled in a class to access dashboard/courses?
-        // For now, just login as student
-        login(student as any, 'student'); // Casting mock student to User for now
-        // Check if there is a 'kid' (class ID) param which might be required for direct course access
-        // But generally redirect to dashboard
+      // 2. If not Admin/Teacher, try to fetch as Student
+      const studentData = await getStudentCourse(uid);
+      
+      if (studentData && (studentData.kursus_uids?.length > 0 || studentData.kelas_uids?.length > 0)) {
+        // It's a Student
+        // Pass studentData to login to persist it in store
+        login(
+          { uid, name: uid, role: 'student', classIds: studentData.kelas_uids }, 
+          'student',
+          studentData
+        );
         navigate('/dashboard');
-      } else {
-        setError('User ID not found');
+        return;
       }
+
+      setError('User ID not found in database');
+    } catch (err) {
+      console.error(err);
+      setError('Login failed. Please check your connection.');
+    } finally {
+      setLoading(false);
     }
-  }, [searchParams, login, navigate]);
+  };
 
   const handleManualLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Redirect to self with query param to trigger the useEffect logic
-    // Or just handle logic here. Let's redirect to keep logic centralized.
+    if (!inputId.trim()) return;
+    
+    // Trigger login logic
     if (inputId.startsWith('admin')) {
       navigate(`/?adminuid=${inputId}`);
     } else {
@@ -58,14 +74,14 @@ const Gate: React.FC = () => {
     }
   };
 
-  if (isAuthenticated) {
-    return <div className="p-8 text-center">Redirecting...</div>;
+  if (isAuthenticated && !loading) {
+     // Optional: Redirect if already logged in?
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md bg-surface border border-border rounded-lg shadow-xl p-8">
-        <h1 className="text-2xl font-bold text-center mb-6 text-primary">CodeMyni Login</h1>
+    <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4">
+      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-lg shadow-xl p-8">
+        <h1 className="text-2xl font-bold text-center mb-6 text-blue-500">CodeMyni Login</h1>
         
         {error && (
           <div className="mb-4 p-3 bg-red-900/30 border border-red-500/50 text-red-200 rounded text-sm">
@@ -75,7 +91,7 @@ const Gate: React.FC = () => {
 
         <form onSubmit={handleManualLogin} className="space-y-4">
           <div>
-            <label htmlFor="uid" className="block text-sm font-medium text-gray-400 mb-1">
+            <label htmlFor="uid" className="block text-sm font-medium text-slate-400 mb-1">
               User ID (UID)
             </label>
             <input
@@ -83,24 +99,26 @@ const Gate: React.FC = () => {
               id="uid"
               value={inputId}
               onChange={(e) => setInputId(e.target.value)}
-              className="w-full px-4 py-2 bg-background border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary text-white"
+              className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-slate-600"
               placeholder="Enter your ID (e.g. adminlord, teacher1, murid1)"
+              disabled={loading}
             />
           </div>
           <button
             type="submit"
-            className="w-full py-2 px-4 bg-primary hover:bg-primary-hover text-white font-semibold rounded transition-colors"
+            disabled={loading}
+            className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-500 text-white font-semibold rounded transition-colors"
           >
-            Login
+            {loading ? 'Verifying...' : 'Login'}
           </button>
         </form>
 
-        <div className="mt-8 pt-6 border-t border-border">
-          <p className="text-xs text-center text-gray-500 mb-4">Demo Credentials:</p>
+        <div className="mt-8 pt-6 border-t border-slate-800">
+          <p className="text-xs text-center text-slate-500 mb-4">Demo Credentials:</p>
           <div className="flex flex-wrap gap-2 justify-center text-xs">
-            <span className="px-2 py-1 bg-gray-800 rounded text-gray-300">adminlord</span>
-            <span className="px-2 py-1 bg-gray-800 rounded text-gray-300">teacher1</span>
-            <span className="px-2 py-1 bg-gray-800 rounded text-gray-300">murid1</span>
+            <span className="px-2 py-1 bg-slate-800 rounded text-slate-300">adminlord</span>
+            <span className="px-2 py-1 bg-slate-800 rounded text-slate-300">teacher1</span>
+            <span className="px-2 py-1 bg-slate-800 rounded text-slate-300">murid1</span>
           </div>
         </div>
       </div>

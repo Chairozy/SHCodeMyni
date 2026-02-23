@@ -32,6 +32,7 @@ export interface Course {
   title: string;
   description: string;
   modules: Module[];
+  moduleLength?: number; // Optional
 }
 
 export interface Module {

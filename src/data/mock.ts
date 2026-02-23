@@ -134,6 +134,13 @@ const courses = [
     title: 'Advanced Mathematics',
     description: 'Advanced topics for seniors.',
     modules: []
+  },
+  {
+    uid: 'kursus1',
+    title: 'Karel Logic',
+    description: 'Learn programming logic by guiding Karel the Robot through 15 levels.',
+    modules: [], // Modules are handled by the game engine
+    moduleLength: 15
   }
 ];
 
