@@ -100,7 +100,7 @@ const Gate: React.FC = () => {
               value={inputId}
               onChange={(e) => setInputId(e.target.value)}
               className="w-full px-4 py-2 bg-slate-950 border border-slate-800 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-slate-600"
-              placeholder="Enter your ID (e.g. adminlord, teacher1, murid1)"
+              placeholder="Enter your ID (e.g. teacher1, murid1)"
               disabled={loading}
             />
           </div>
@@ -116,7 +116,6 @@ const Gate: React.FC = () => {
         <div className="mt-8 pt-6 border-t border-slate-800">
           <p className="text-xs text-center text-slate-500 mb-4">Demo Credentials:</p>
           <div className="flex flex-wrap gap-2 justify-center text-xs">
-            <span className="px-2 py-1 bg-slate-800 rounded text-slate-300">adminlord</span>
             <span className="px-2 py-1 bg-slate-800 rounded text-slate-300">teacher1</span>
             <span className="px-2 py-1 bg-slate-800 rounded text-slate-300">murid1</span>
           </div>

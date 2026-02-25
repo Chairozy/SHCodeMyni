@@ -1,17 +1,26 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { karelLevels, LevelConfig, GridPos, Direction } from '@/data/karelLevels';
-import { updateProgress } from '@/services/api';
-import { useAuthStore } from '@/store/authStore';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { karelLevels, GridPos, Direction } from '@/data/karelLevels';
 import { useSearchParams } from 'react-router-dom';
+import LevelNavbar from '@/components/LevelNavbar';
+import {
+  IconArrowUp,
+  IconBall,
+  IconCheck,
+  IconPick,
+  IconPut,
+  IconRobot,
+  IconTurnLeft,
+  IconTurnRight,
+} from '@/components/GameIcons';
 
 type BlockType = 'Move' | 'TurnLeft' | 'TurnRight' | 'Pick' | 'Put';
 
-const BLOCKS: { type: BlockType; label: string }[] = [
-  { type: 'Move', label: '⬆️' },
-  { type: 'TurnLeft', label: '↺' },
-  { type: 'TurnRight', label: '↻' },
-  { type: 'Pick', label: '🧶' },
-  { type: 'Put', label: '⚽' },
+const BLOCKS: { type: BlockType; label: React.ReactNode }[] = [
+  { type: 'Move', label: <IconArrowUp className="text-slate-100" size={22} /> },
+  { type: 'TurnLeft', label: <IconTurnLeft className="text-slate-100" size={22} /> },
+  { type: 'TurnRight', label: <IconTurnRight className="text-slate-100" size={22} /> },
+  { type: 'Pick', label: <IconPick className="text-slate-100" size={22} /> },
+  { type: 'Put', label: <IconPut className="text-slate-100" size={22} /> },
 ];
 
 interface RobotState {
@@ -29,19 +38,18 @@ const DIR_VECTORS: Record<Direction, GridPos> = {
   W: { x: -1, y: 0 },
 };
 
-export default function KarelGame({ 
-  studentUid, 
+export default function KarelGame({
   initialLevel,
-  onLevelComplete 
-}: { 
-  studentUid: string; 
+  onLevelComplete,
+}: {
   initialLevel: number;
   onLevelComplete: (level: number) => void;
 }) {
   const [searchParams, setSearchParams] = useSearchParams();
   
   // URL level param logic
-  const [urlLv, setUrlLv] = useState<number | null>(parseInt(searchParams.get('lv') || '1', 10));
+  const parsed = Number.parseInt(searchParams.get('lv') || '1', 10);
+  const urlLv = Number.isFinite(parsed) ? parsed : 1;
   // Ensure we don't go beyond unlocked level (initialLevel + 1 roughly corresponds to next available)
   // Actually initialLevel passed prop is "current max completed level" or "current level"?
   // Let's assume initialLevel is the MAX UNLOCKED level index (0-based) or count?
@@ -69,6 +77,15 @@ export default function KarelGame({
 
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  useEffect(() => {
+    if (!searchParams.has('lv')) {
+      setSearchParams(prev => {
+        prev.set('lv', '1');
+        return prev;
+      }, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
   // Sync URL if needed
   useEffect(() => {
     if (urlLv !== targetLevelId) {
@@ -79,12 +96,7 @@ export default function KarelGame({
     }
   }, [urlLv, targetLevelId, setSearchParams]);
 
-  // Reset level when config changes
-  useEffect(() => {
-    resetLevel();
-  }, [levelConfig]);
-
-  const resetLevel = () => {
+  const resetLevel = useCallback(() => {
     if (!levelConfig) return;
     setRobot({ 
       pos: { ...levelConfig.startPos }, 
@@ -97,7 +109,12 @@ export default function KarelGame({
     setErrorMsg(null);
     setActiveLine(null);
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-  };
+  }, [levelConfig]);
+
+  // Reset level when config changes
+  useEffect(() => {
+    resetLevel();
+  }, [resetLevel]);
 
   const addBlock = (type: BlockType) => {
     if (isRunning) return;
@@ -109,89 +126,7 @@ export default function KarelGame({
     setCode(prev => prev.filter((_, i) => i !== index));
   };
 
-  const runCode = async () => {
-    if (isRunning) return;
-    resetLevel(); // Ensure clean state before run (except code)
-    // Wait a tick for state update
-    setTimeout(() => {
-      setIsRunning(true);
-      executeStep(0);
-    }, 50);
-  };
-
-  const executeStep = (stepIndex: number) => {
-    if (stepIndex >= code.length) {
-      checkWin({ robot, gridBalls }); // Check win with current state
-      setIsRunning(false);
-      setActiveLine(null);
-      return;
-    }
-
-    setActiveLine(stepIndex);
-    const block = code[stepIndex];
-
-    // Execute logic
-    // We need to use functional state updates to ensure we work with latest state in the loop
-    // But since we use setTimeout recursion, we can just read/write state?
-    // Actually, closures might trap old state if not careful.
-    // Better to calculate next state and set it.
-    
-    setRobot(prevRobot => {
-      let nextRobot = { ...prevRobot };
-      let error: string | null = null;
-
-      if (block === 'TurnLeft') {
-        const currentDirIdx = DIRS.indexOf(nextRobot.dir);
-        nextRobot.dir = DIRS[(currentDirIdx + 3) % 4]; // Counter-clockwise
-      } else if (block === 'Move') {
-        const vec = DIR_VECTORS[nextRobot.dir];
-        const nextPos = { x: nextRobot.pos.x + vec.x, y: nextRobot.pos.y + vec.y };
-        
-        // Check bounds
-        if (nextPos.x < 0 || nextPos.x >= levelConfig.gridSize.cols ||
-            nextPos.y < 0 || nextPos.y >= levelConfig.gridSize.rows) {
-          error = "Crashed into wall!";
-        } 
-        // Check block walls
-        else if (levelConfig.walls.some(w => w.x === nextPos.x && w.y === nextPos.y)) {
-          error = "Crashed into wall!";
-        }
-        // Check line walls (thin walls) logic would go here (omitted for brevity unless strictly needed)
-        else {
-          nextRobot.pos = nextPos;
-        }
-      } else if (block === 'Pick') {
-        // We need to access gridBalls state here. 
-        // This is tricky inside setRobot unless we combine state or use ref.
-        // Let's handle side effects (balls) outside this setter or use a reducer-like pattern.
-        // For simplicity, let's just mark a flag and handle grid update in a useEffect or separate setter immediately after.
-      } else if (block === 'Put') {
-        if (nextRobot.balls > 0) {
-          nextRobot.balls--;
-        } else {
-          error = "No balls to put!";
-        }
-      }
-
-      if (error) {
-        setErrorMsg(error);
-        setIsRunning(false);
-        return prevRobot; // Cancel update
-      }
-      return nextRobot;
-    });
-
-    // Handle Balls separately since they depend on current robot pos
-    // We can't easily do it inside setRobot.
-    // Let's assume the previous setRobot finished? No, React batches.
-    // We need to execute logic based on *current* state before the step, then update.
-    // Let's refactor execution to read state from a Ref for the simulation loop to avoid closure staleness.
-    // OR simpler: just chain the next step in a useEffect that watches `activeLine`?
-    // No, `setTimeout` loop is better for animation control.
-    
-    // Hack: Use a mutable ref for the simulation state during the run, sync React state for UI.
-    // This is robust.
-  };
+  
 
   // --- Robust Simulation Engine ---
   // We'll actually simulate the whole thing step-by-step using a Ref to hold state during run
@@ -318,6 +253,18 @@ export default function KarelGame({
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)]">
+      <LevelNavbar
+        totalLevels={15}
+        activeLevelId={targetLevelId}
+        initialCompletedLevel={initialLevel}
+        isRunning={isRunning}
+        onSelectLevel={(id) => {
+          setSearchParams(prev => {
+            prev.set('lv', String(id));
+            return prev;
+          });
+        }}
+      />
       {/* Top: Game Area */}
       <div className="flex-1 bg-slate-900 p-4 flex items-center justify-center relative">
         <div className="relative bg-slate-800 border-2 border-slate-700 rounded-lg shadow-2xl p-4">
@@ -328,13 +275,18 @@ export default function KarelGame({
           {isWon && (
             <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 rounded-lg">
               <div className="text-center animate-bounce">
-                <div className="text-6xl">🎉</div>
+                <div className="flex items-center justify-center">
+                  <IconCheck className="text-green-400" size={56} />
+                </div>
                 <h2 className="text-2xl font-bold text-green-400 mt-2">Level Complete!</h2>
                 {targetLevelId < 15 && (
                   <button 
                     onClick={() => {
-                      setUrlLv(urlLv + 1);
-                      setCode([])
+                      setSearchParams(prev => {
+                        prev.set('lv', String(targetLevelId + 1));
+                        return prev;
+                      });
+                      setCode([]);
                     }}
                     className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white font-bold"
                   >
@@ -370,17 +322,17 @@ export default function KarelGame({
               return (
                 <div key={idx} className={`w-16 h-16 relative flex items-center justify-center rounded-sm ${isWall ? 'bg-slate-600 border-4 border-slate-500' : 'bg-slate-800 border border-slate-700'}`}>
                   {isGoal && !isWall && <div className="absolute inset-2 border-4 border-green-500/30 rounded-full animate-pulse" />}
-                  {isBall && <div className="text-2xl z-10">🧶</div>}
-                  {isRobot && (
-                    <div 
-                      className="text-4xl z-20 transition-all duration-300"
-                      style={{ 
-                        transform: `rotate(${robot.dir === 'E' ? 0 : robot.dir === 'S' ? 90 : robot.dir === 'W' ? 180 : -90}deg)`
+                  {isBall ? <IconBall className="text-amber-300 z-10" size={26} /> : null}
+                  {isRobot ? (
+                    <div
+                      className="z-20 transition-all duration-300"
+                      style={{
+                        transform: `rotate(${robot.dir === 'E' ? 0 : robot.dir === 'S' ? 90 : robot.dir === 'W' ? 180 : -90}deg)`,
                       }}
                     >
-                      🤖
+                      <IconRobot className="text-sky-300" size={34} />
                     </div>
-                  )}
+                  ) : null}
                 </div>
               );
             })}

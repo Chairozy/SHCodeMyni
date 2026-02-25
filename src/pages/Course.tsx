@@ -1,10 +1,15 @@
-import { useState, useEffect } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { mockDatabase } from '@/data/mock';
 import { Course as CourseType, Module, QuizQuestion } from '@/types';
 import { updateProgress } from '@/services/api';
 import { useAuthStore } from '@/store/authStore';
-import KarelGame from '@/components/KarelGame';
+import { IconCheck } from '@/components/GameIcons';
+
+const KarelGame = React.lazy(() => import('@/components/KarelGame'));
+const PencilGame = React.lazy(() => import('@/components/PencilGame'));
+const BricksGame = React.lazy(() => import('@/components/BricksGame'));
+const TinyTankGame = React.lazy(() => import('@/components/TinyTankGame'));
 
 export default function Course() {
   const { courseUid } = useParams();
@@ -96,6 +101,42 @@ export default function Course() {
     }
   };
 
+  const handlePencilLevelComplete = (completedLevelId: number) => {
+    if (completedLevelId > currentLevel) {
+      setCurrentLevel(completedLevelId);
+      if (studentUid && courseUid) {
+        const storageKey = `codemyni_progress_${studentUid}_${courseUid}`;
+        localStorage.setItem(storageKey, completedLevelId.toString());
+        updateStudentProgress(courseUid, completedLevelId);
+        updateProgress(studentUid, courseUid, completedLevelId);
+      }
+    }
+  };
+
+  const handleBricksLevelComplete = (completedLevelId: number) => {
+    if (completedLevelId > currentLevel) {
+      setCurrentLevel(completedLevelId);
+      if (studentUid && courseUid) {
+        const storageKey = `codemyni_progress_${studentUid}_${courseUid}`;
+        localStorage.setItem(storageKey, completedLevelId.toString());
+        updateStudentProgress(courseUid, completedLevelId);
+        updateProgress(studentUid, courseUid, completedLevelId);
+      }
+    }
+  };
+
+  const handleTinyTankLevelComplete = (completedLevelId: number) => {
+    if (completedLevelId > currentLevel) {
+      setCurrentLevel(completedLevelId);
+      if (studentUid && courseUid) {
+        const storageKey = `codemyni_progress_${studentUid}_${courseUid}`;
+        localStorage.setItem(storageKey, completedLevelId.toString());
+        updateStudentProgress(courseUid, completedLevelId);
+        updateProgress(studentUid, courseUid, completedLevelId);
+      }
+    }
+  };
+
   if (loading) return <div className="p-8 text-white text-center">Loading Course Content...</div>;
 
   if (!studentUid || !classUid) {
@@ -163,11 +204,72 @@ export default function Course() {
               Exit
             </button>
          </header>
-         <KarelGame 
-           studentUid={studentUid} 
-           initialLevel={currentLevel} 
-           onLevelComplete={handleKarelLevelComplete} 
-         />
+         <Suspense fallback={<div className="p-8 text-white text-center">Loading Course Content...</div>}>
+           <KarelGame initialLevel={currentLevel} onLevelComplete={handleKarelLevelComplete} />
+         </Suspense>
+      </div>
+    );
+  }
+
+  if (course.uid === 'kursus2') {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+        <header className="bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-10 shadow-md flex justify-between items-center h-16">
+          <div>
+            <h1 className="text-lg font-bold text-blue-500">{course.title}</h1>
+          </div>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="text-sm px-3 py-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+          >
+            Exit
+          </button>
+        </header>
+        <Suspense fallback={<div className="p-8 text-white text-center">Loading Course Content...</div>}>
+          <PencilGame initialLevel={currentLevel} onLevelComplete={handlePencilLevelComplete} />
+        </Suspense>
+      </div>
+    );
+  }
+
+  if (course.uid === 'kursus3') {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+        <header className="bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-10 shadow-md flex justify-between items-center h-16">
+          <div>
+            <h1 className="text-lg font-bold text-blue-500">{course.title}</h1>
+          </div>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="text-sm px-3 py-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+          >
+            Exit
+          </button>
+        </header>
+        <Suspense fallback={<div className="p-8 text-white text-center">Loading Course Content...</div>}>
+          <BricksGame initialLevel={currentLevel} onLevelComplete={handleBricksLevelComplete} />
+        </Suspense>
+      </div>
+    );
+  }
+
+  if (course.uid === 'kursus4') {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+        <header className="bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-10 shadow-md flex justify-between items-center h-16">
+          <div>
+            <h1 className="text-lg font-bold text-blue-500">{course.title}</h1>
+          </div>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="text-sm px-3 py-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+          >
+            Exit
+          </button>
+        </header>
+        <Suspense fallback={<div className="p-8 text-white text-center">Loading Course Content...</div>}>
+          <TinyTankGame initialLevel={currentLevel} onLevelComplete={handleTinyTankLevelComplete} />
+        </Suspense>
       </div>
     );
   }
@@ -201,7 +303,9 @@ export default function Course() {
       <main className="flex-1 w-full max-w-3xl mx-auto p-4 md:p-6 flex flex-col items-center">
         {isCompleted ? (
           <div className="bg-slate-900 rounded-xl p-8 md:p-12 text-center border border-slate-800 shadow-xl mt-8 w-full animate-fade-in">
-            <div className="text-6xl mb-6 animate-bounce">🎉</div>
+            <div className="flex items-center justify-center mb-6">
+              <IconCheck className="text-green-400" size={56} />
+            </div>
             <h2 className="text-3xl font-bold text-white mb-4">Congratulations!</h2>
             <p className="text-slate-300 mb-8 text-lg">
               You have successfully completed all levels in <br/>

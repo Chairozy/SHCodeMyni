@@ -38,7 +38,7 @@ const progress = [
 
 const courses = [
   {
-    uid: 'kursus3',
+    uid: 'kursus_quiz',
     title: 'Sequence Logic Quiz',
     description: 'Test your knowledge on sequence logic with this 5-question quiz. You must answer correctly to proceed.',
     modules: [
@@ -127,7 +127,15 @@ const courses = [
           }
         ]
       }
-    ]
+    ],
+    moduleLength: 5
+  },
+  {
+    uid: 'kursus3',
+    title: 'Bricks',
+    description: 'Susun bata untuk meratakan permukaan tembok (15 level).',
+    modules: [],
+    moduleLength: 15
   },
   {
     uid: 'kursus99',
@@ -140,6 +148,20 @@ const courses = [
     title: 'Karel Logic',
     description: 'Learn programming logic by guiding Karel the Robot through 15 levels.',
     modules: [], // Modules are handled by the game engine
+    moduleLength: 15
+  },
+  {
+    uid: 'kursus2',
+    title: 'Pencil',
+    description: 'Latihan pola garis lurus dengan blok dan repeat (15 level).',
+    modules: [],
+    moduleLength: 15
+  },
+  {
+    uid: 'kursus4',
+    title: 'TinyTank',
+    description: 'Gerakkan tank dan tembak monster di arena grid (15 level).',
+    modules: [],
     moduleLength: 15
   }
 ];

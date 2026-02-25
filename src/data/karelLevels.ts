@@ -42,7 +42,7 @@ export const karelLevels: LevelConfig[] = [
   createLevel(1, "Move to the goal", 5, 1, { x: 0, y: 0 }, { x: 4, y: 0 }),
   
   // Level 2: Jump over a block
-  createLevel(2, "Jump over the wall", 5, 3, { x: 0, y: 0 }, { x: 4, y: 0 }, [{ x: 2, y: 0 }]),
+  createLevel(2, "Jump over the wall", 5, 3, { x: 0, y: 0 }, { x: 4, y: 1 }, [{ x: 2, y: 0 }]),
   
   // Level 3: Pick up a ball
   createLevel(3, "Pick up the ball and finish", 5, 1, { x: 0, y: 0 }, { x: 4, y: 0 }, [], [{ x: 2, y: 0 }]),
@@ -74,7 +74,7 @@ export const karelLevels: LevelConfig[] = [
 
   // Level 10: Spiral
   createLevel(10, "Inward Spiral", 5, 5, { x: 0, y: 0 }, { x: 2, y: 2 }, 
-    [{x:1,y:1}, {x:2,y:1}, {x:3,y:1}, {x:3,y:2}, {x:3,y:3}, {x:2,y:3}, {x:1,y:3}, {x:1,y:2}]
+    [{x:0,y:1}, {x:1,y:1}, {x:2,y:1}, {x:3,y:1}, {x:3,y:2}, {x:3,y:3}, {x:2,y:3}, {x:1,y:3}]
   ),
 
   // Level 11: Hurdles
@@ -84,7 +84,7 @@ export const karelLevels: LevelConfig[] = [
 
   // Level 12: The Box
   createLevel(12, "Get inside the box", 5, 5, { x: 0, y: 0 }, { x: 2, y: 2 }, 
-    [{x:1,y:1}, {x:2,y:1}, {x:3,y:1}, {x:3,y:2}, {x:3,y:3}, {x:2,y:3}, {x:1,y:3}, {x:1,y:2}], 
+    [{x:1,y:1}, {x:2,y:1}, {x:3,y:2}, {x:3,y:3}, {x:2,y:3}, {x:1,y:3}, {x:1,y:2}], 
     // Wait, Level 10 was spiral, let's make this one define a box with one entrance
     [{x:2,y:2}] // Ball inside
   ),
