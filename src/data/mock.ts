@@ -22,13 +22,13 @@ const classes = [
     uid: 'kelas1',
     teacherUids: ['teacher1', 'teacher7'],
     studentUids: ['murid20', 'murid21', 'murid34'],
-    courseUids: ['kursus3', 'kursus99']
+    courseUids: ['kursus3', 'kursus99', 'blockly1']
   },
   {
     uid: 'kelas2',
     teacherUids: ['teacher2'],
     studentUids: ['murid1'],
-    courseUids: ['kursus3']
+    courseUids: ['kursus3', 'blockly1']
   }
 ];
 
@@ -161,6 +161,13 @@ const courses = [
     uid: 'kursus4',
     title: 'TinyTank',
     description: 'Gerakkan tank dan tembak monster di arena grid (15 level).',
+    modules: [],
+    moduleLength: 15
+  },
+  {
+    uid: 'blockly1',
+    title: 'Karel World',
+    description: 'Karel World dengan Blockly: bergerak 4 arah, pick/put bola (15 level).',
     modules: [],
     moduleLength: 15
   }

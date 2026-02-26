@@ -10,6 +10,7 @@ const KarelGame = React.lazy(() => import('@/components/KarelGame'));
 const PencilGame = React.lazy(() => import('@/components/PencilGame'));
 const BricksGame = React.lazy(() => import('@/components/BricksGame'));
 const TinyTankGame = React.lazy(() => import('@/components/TinyTankGame'));
+const Blockly1KarelWorld = React.lazy(() => import('@/components/Blockly1KarelWorld'));
 
 export default function Course() {
   const { courseUid } = useParams();
@@ -126,6 +127,18 @@ export default function Course() {
   };
 
   const handleTinyTankLevelComplete = (completedLevelId: number) => {
+    if (completedLevelId > currentLevel) {
+      setCurrentLevel(completedLevelId);
+      if (studentUid && courseUid) {
+        const storageKey = `codemyni_progress_${studentUid}_${courseUid}`;
+        localStorage.setItem(storageKey, completedLevelId.toString());
+        updateStudentProgress(courseUid, completedLevelId);
+        updateProgress(studentUid, courseUid, completedLevelId);
+      }
+    }
+  };
+
+  const handleBlockly1LevelComplete = (completedLevelId: number) => {
     if (completedLevelId > currentLevel) {
       setCurrentLevel(completedLevelId);
       if (studentUid && courseUid) {
@@ -269,6 +282,27 @@ export default function Course() {
         </header>
         <Suspense fallback={<div className="p-8 text-white text-center">Loading Course Content...</div>}>
           <TinyTankGame initialLevel={currentLevel} onLevelComplete={handleTinyTankLevelComplete} />
+        </Suspense>
+      </div>
+    );
+  }
+
+  if (course.uid === 'blockly1') {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+        <header className="bg-slate-900 border-b border-slate-800 p-4 sticky top-0 z-10 shadow-md flex justify-between items-center h-16">
+          <div>
+            <h1 className="text-lg font-bold text-blue-500">{course.title}</h1>
+          </div>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="text-sm px-3 py-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+          >
+            Exit
+          </button>
+        </header>
+        <Suspense fallback={<div className="p-8 text-white text-center">Loading Course Content...</div>}>
+          <Blockly1KarelWorld initialLevel={currentLevel} onLevelComplete={handleBlockly1LevelComplete} />
         </Suspense>
       </div>
     );

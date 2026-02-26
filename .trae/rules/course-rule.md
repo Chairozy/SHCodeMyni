@@ -6,3 +6,7 @@
 6. Keep course when executing code or running code is safe, mean not block user interaction.
 7. Course interface design is have navbar top for change level.
 8. Course level can't be skipped, mean user must complete current level before move to next level.
+9. Course dengan awalan id "blockly" adalah course yang menggunakan blockly sebagai editor kode:
+  - Blockly kode editor di kiri, selalu munculkan block tanpa kategori.
+  - Tantangan dan program ada di sebelah kanan, dengan sediakan 2 tombol "Run", "Reset", dan "Speed x1/x2".
+  - Kalau win maka muncul tombol lanjutkan.

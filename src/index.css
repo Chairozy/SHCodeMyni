@@ -30,3 +30,14 @@ body {
   width: 100%;
   min-height: 100vh;
 }
+
+.blocklyScrollbarHorizontal,
+.blocklyScrollbarVertical,
+svg[display="block"] {
+  display: block !important;
+}
+.blocklyScrollbarHorizontal,
+.blocklyScrollbarVertical,
+svg[display="none"] {
+  display: none !important;
+}
